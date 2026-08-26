@@ -1,6 +1,6 @@
 # Farever Mute When Unfocused
 
-A small unofficial [HLX](https://github.com/hlx-framework/hlx-core) mod for **Farever** that mutes the game's own audio when the Farever window loses focus and restores the previous volume when you return to the game.
+A small unofficial [HLX](https://github.com/hlx-framework/hlx-core) mod for **Farever** that lowers or mutes the game's own audio when the Farever window loses focus and restores the previous volume when you return to the game.
 
 It only changes Farever's internal FMOD master VCA (`vca:/MASTER`). It does **not** change the Windows volume mixer or mute other applications.
 
@@ -8,17 +8,35 @@ It only changes Farever's internal FMOD master VCA (`vca:/MASTER`). It does **no
 
 ### 1. Install HLX Core
 
-Install HLX Core into your Farever game directory. After HLX is installed, your Farever folder should contain an `hlx` directory with a `mods` subfolder.
+Install HLX Core from Nexus Mods:
 
-A typical Steam install path is:
+https://www.nexusmods.com/site/mods/2118?tab=files&file_id=8998
+
+Extract it into your Farever game directory. A typical Steam install path is:
 
 ```text
 C:\Program Files (x86)\Steam\steamapps\common\Farever\
 ```
 
-### 2. Install this mod
+After HLX is installed, the Farever directory should contain `libhl64.dll` and an `hlx` folder.
 
-Use the compiled `mute-unfocused.hl` from the v1.0.0 package.
+### 2. Install the Farever ImGui plugin
+
+The settings menu requires the Farever ImGui plugin:
+
+https://www.nexusmods.com/farever/mods/4
+
+Install it according to the plugin's instructions. The important native plugin file should end up here:
+
+```text
+Farever\hlx\plugins\imgui64.hdll
+```
+
+The plugin may also include its supporting `imgui\fonts` folder under `hlx\plugins`.
+
+Do not place `imgui64.hdll` loose beside `Farever.exe`.
+
+### 3. Install this mod
 
 Create this directory if it does not already exist:
 
@@ -26,51 +44,85 @@ Create this directory if it does not already exist:
 Farever\hlx\mods\mute-unfocused\
 ```
 
-Place the file here:
+Place `mute-unfocused.hl` here:
 
 ```text
 Farever\hlx\mods\mute-unfocused\mute-unfocused.hl
 ```
 
-The final layout should look like:
+The final layout should look roughly like:
 
 ```text
 Farever\
+├── libhl64.dll
 └── hlx\
+    ├── plugins\
+    │   ├── imgui64.hdll
+    │   └── imgui\
+    │       └── fonts\
     └── mods\
         └── mute-unfocused\
             └── mute-unfocused.hl
 ```
 
-Fully close and relaunch Farever. When you Alt-Tab away, Farever should become silent. Returning to the game restores the volume that was active before it lost focus.
+Fully close and relaunch Farever after installing or replacing the mod.
+
+## Using the settings menu
+
+The settings menu opens automatically the **first time** the mod is run so the player can see the available options. After it has been shown once, it stays closed on future game launches unless you reopen it manually.
+
+The default menu hotkey is:
+
+```text
+F9
+```
+
+Press **F9** at any time while Farever is focused to reopen the **Mute on Unfocus** window. The window can be closed with its **X** button.
+
+The menu contains:
+
+- **Enable** — turns the unfocused-audio behavior on or off.
+- **Background volume %** — sets Farever's volume while the game is unfocused. The default is **0%**, which fully mutes the game.
+- **Change hotkey** — click this, then press the key combination you want to use to reopen the menu.
+
+Hotkeys can use a normal keyboard key by itself or combinations with **Ctrl**, **Shift**, **Alt**, and **Win/Super**. For example:
+
+```text
+Ctrl + Shift + F9
+```
+
+While changing the hotkey, hold the modifier keys first and then press the main key. Press **Esc** to cancel without changing it.
+
+Settings are saved automatically to:
+
+```text
+Farever\hlx\mods\mute-unfocused\config.json
+```
 
 ## How it works
 
-The mod hooks `GameApp.update` through HLX and watches `hxd.Window.isFocused`.
+The mod hooks `GameApp.update` through HLX and watches Farever's `hxd.Window.isFocused` state.
 
 When focus changes:
 
-- **Focused → unfocused:** read the current Farever master VCA volume and set `vca:/MASTER` to `0`.
+- **Focused → unfocused:** read the current Farever master VCA volume and apply the configured background volume.
 - **Unfocused → focused:** restore the saved master VCA volume.
 
 Because this is done through Farever's FMOD API, other Windows applications are unaffected.
 
 ## Building from source
 
-The tested v1.0.0 binary was compiled against the Farever build current on **August 25, 2026**. Game updates can change the generated game API and may require recompiling.
-
 Prerequisites:
 
-- Haxe 4.3.x (v1.0.0 was built with Haxe 4.3.7)
+- Haxe 4.3.x (tested with Haxe 4.3.7)
 - HLX runtime (`hlx-runtime`)
-- A `farever-gamelib` generated from your current Farever `hlboot.dat`
+- Farever `hl-imgui`
 
-Typical setup:
+Install the Haxe dependencies:
 
 ```text
 haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
-hlx-gamelib-generator <path-to-Farever/hlboot.dat> <output-gamelib-dir>
-haxelib dev farever-gamelib <output-gamelib-dir>
+haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
 ```
 
 Then run from the repository root:
@@ -85,9 +137,11 @@ The output is:
 build/mute-unfocused/mute-unfocused.hl
 ```
 
+The repository includes a minimal `h3d.impl.DX12Driver` compile-time wrapper so this mod can build without distributing Farever's proprietary generated game library.
+
 ## Compatibility
 
-This mod is tied to Farever's internal API. Small content updates may leave it working unchanged, while larger game/engine updates may break the hook or generated wrappers.
+This mod is tied to Farever's internal API and the current HLX/ImGui integration. Game or framework updates can break the hook or native UI integration and may require a rebuild.
 
 If Farever stops launching after an update, remove:
 
@@ -95,8 +149,8 @@ If Farever stops launching after an update, remove:
 Farever\hlx\mods\mute-unfocused\
 ```
 
-and relaunch the game. Rebuild the mod against the new `hlboot.dat` before reinstalling it.
+and relaunch the game.
 
 ## Disclaimer
 
-This is an unofficial community mod and is not affiliated with or endorsed by Farever's developers, HLX, Steam, or Valve. Use third-party mods at your own risk, especially in online games.
+This is an unofficial community mod and is not affiliated with or endorsed by Farever's developers, HLX, Steam, Valve, or the Farever ImGui plugin author. Use third-party mods at your own risk, especially in online games.
