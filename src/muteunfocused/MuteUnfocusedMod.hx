@@ -17,6 +17,7 @@ class MuteUnfocusedMod {
     static var enabled = new BoolRef(true);
     static var backgroundVolume = new FloatRef(0.0);
     static var panelOpen = new BoolRef(true);
+    static var hasSeenMenu:Bool = false;
 
     // Default hotkey: F9, no modifiers.
     static var hotkeyKey:Int = ImGuiKey.F9;
@@ -41,6 +42,7 @@ class MuteUnfocusedMod {
         // HLX loads mods before its reflection layer has necessarily recovered the live game
         // module. Do not cache failed resolutions here; bind lazily from GameApp.update instead.
         loadConfig();
+        panelOpen.set(!hasSeenMenu);
         ImGui.register(HlxRuntime.moduleName(), drawSettings);
     }
 
@@ -130,6 +132,12 @@ class MuteUnfocusedMod {
         if (!ImGui.begin("Mute on Unfocus", panelOpen)) {
             ImGui.end();
             return;
+        }
+
+        // Once the player has actually seen the menu, do not auto-open it on future launches.
+        if (!hasSeenMenu) {
+            hasSeenMenu = true;
+            saveConfig();
         }
 
         ImGui.text("Farever audio when the game is not focused");
@@ -270,6 +278,14 @@ class MuteUnfocusedMod {
                 var oldF:Int = clampInt(cast Reflect.field(data, "hotkeyFunctionKey"), 1, 12);
                 hotkeyKey = ImGuiKey.F1 + oldF - 1;
             }
+
+            if (Reflect.hasField(data, "hasSeenMenu")) {
+                hasSeenMenu = Reflect.field(data, "hasSeenMenu");
+            } else {
+                // An existing config came from an earlier UI build, whose menu auto-opened.
+                // Treat it as already seen so upgrading users are not interrupted again.
+                hasSeenMenu = true;
+            }
         } catch (_:Dynamic) {}
     }
 
@@ -282,7 +298,8 @@ class MuteUnfocusedMod {
                 hotkeyCtrl: hotkeyCtrl,
                 hotkeyShift: hotkeyShift,
                 hotkeyAlt: hotkeyAlt,
-                hotkeySuper: hotkeySuper
+                hotkeySuper: hotkeySuper,
+                hasSeenMenu: hasSeenMenu
             };
             File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
         } catch (_:Dynamic) {}
