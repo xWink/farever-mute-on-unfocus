@@ -118,14 +118,13 @@ class MuteUnfocusedMod {
     }
 
     static function drawSettings():Void {
-        // Keep the callback registered while closed so the configured hotkey can reopen it.
         if (!capturingHotkey && hotkeyPressed())
             panelOpen.set(true);
 
         if (!panelOpen.get())
             return;
 
-        // Make the settings window substantially more opaque than the ImGui default.
+        // Reduce transparency: 0.98 = 98% opaque.
         ImGui.setNextWindowBgAlpha(0.98);
 
         if (!ImGui.begin("Mute on Unfocus", panelOpen)) {
@@ -183,9 +182,7 @@ class MuteUnfocusedMod {
             return;
         }
 
-        // ImGui's keyboard named-key range is 512..631 in the version used by Farever's
-        // hl-imgui wrapper. Modifier keys are handled separately so combinations such as
-        // Ctrl+Shift+F9 can be captured naturally.
+        // Keyboard named-key range for this ImGui version. Modifiers are captured separately.
         for (key in 512...632) {
             if (isModifierKey(key) || key == ImGuiKey.Escape)
                 continue;
@@ -223,10 +220,10 @@ class MuteUnfocusedMod {
 
     static function keyLabel(key:Int):String {
         if (key >= ImGuiKey._0 && key <= ImGuiKey._9)
-            return String.fromCharCode("0".code + (key - ImGuiKey._0));
+            return String.fromCharCode(48 + (key - ImGuiKey._0));
 
         if (key >= ImGuiKey.A && key <= ImGuiKey.Z)
-            return String.fromCharCode("A".code + (key - ImGuiKey.A));
+            return String.fromCharCode(65 + (key - ImGuiKey.A));
 
         if (key >= ImGuiKey.F1 && key <= ImGuiKey.F24)
             return "F" + (key - ImGuiKey.F1 + 1);
@@ -262,7 +259,6 @@ class MuteUnfocusedMod {
             if (Reflect.hasField(data, "backgroundVolume"))
                 backgroundVolume.set(clamp(cast Reflect.field(data, "backgroundVolume"), 0.0, 100.0));
 
-            // New hotkey format.
             if (Reflect.hasField(data, "hotkeyKey")) {
                 hotkeyKey = cast Reflect.field(data, "hotkeyKey");
                 if (Reflect.hasField(data, "hotkeyCtrl")) hotkeyCtrl = Reflect.field(data, "hotkeyCtrl");
@@ -270,7 +266,7 @@ class MuteUnfocusedMod {
                 if (Reflect.hasField(data, "hotkeyAlt")) hotkeyAlt = Reflect.field(data, "hotkeyAlt");
                 if (Reflect.hasField(data, "hotkeySuper")) hotkeySuper = Reflect.field(data, "hotkeySuper");
             } else if (Reflect.hasField(data, "hotkeyFunctionKey")) {
-                // Migrate the earlier F1-F12 slider setting automatically.
+                // Migrate the previous F1-F12 slider setting automatically.
                 var oldF:Int = clampInt(cast Reflect.field(data, "hotkeyFunctionKey"), 1, 12);
                 hotkeyKey = ImGuiKey.F1 + oldF - 1;
             }
