@@ -18,7 +18,7 @@ C:\Program Files (x86)\Steam\steamapps\common\Farever\
 
 ### 2. Install this mod
 
-Download the compiled `mute-unfocused.hl` from this repository's `dist/mute-unfocused/` folder (or from the latest GitHub Release).
+Use the compiled `mute-unfocused.hl` from the v1.0.0 package.
 
 Create this directory if it does not already exist:
 
@@ -57,11 +57,11 @@ Because this is done through Farever's FMOD API, other Windows applications are 
 
 ## Building from source
 
-The checked-in binary was compiled against the Farever build current on **August 25, 2026**. Game updates can change the generated game API and may require recompiling.
+The tested v1.0.0 binary was compiled against the Farever build current on **August 25, 2026**. Game updates can change the generated game API and may require recompiling.
 
 Prerequisites:
 
-- Haxe 4.3.x (the included binary was built with Haxe 4.3.7)
+- Haxe 4.3.x (v1.0.0 was built with Haxe 4.3.7)
 - HLX runtime (`hlx-runtime`)
 - A `farever-gamelib` generated from your current Farever `hlboot.dat`
 
