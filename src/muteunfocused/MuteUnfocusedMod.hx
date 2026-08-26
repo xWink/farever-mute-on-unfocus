@@ -1,11 +1,12 @@
 package muteunfocused;
 
 import haxe.Json;
-import haxe.Timer;
 import hlx.runtime.ResolvedMember;
 import imgui.ImGui;
+import imgui.ImGuiKey;
 import imgui.ref.BoolRef;
 import imgui.ref.FloatRef;
+import imgui.ref.IntRef;
 import sys.FileSystem;
 import sys.io.File;
 
@@ -16,13 +17,12 @@ class MuteUnfocusedMod {
 
     static var enabled = new BoolRef(true);
     static var backgroundVolume = new FloatRef(0.0);
-    static var delaySeconds = new FloatRef(0.0);
+    static var panelOpen = new BoolRef(true);
+    static var hotkeyFunctionKey = new IntRef(9);
 
     static var lastFocused:Bool = true;
     static var mutedByUs:Bool = false;
     static var savedMasterVolume:Float = 1.0;
-    static var focusLostAt:Float = 0.0;
-    static var pendingMute:Bool = false;
 
     static var windowType:hl.Bytes;
     static var windowGetInstance:ResolvedMember;
@@ -63,32 +63,19 @@ class MuteUnfocusedMod {
             return;
 
         var focused = isGameFocused();
-
         if (focused != lastFocused) {
             lastFocused = focused;
 
             if (focused) {
-                pendingMute = false;
                 if (mutedByUs)
                     restoreVolume();
-            } else if (enabled.get()) {
-                focusLostAt = Timer.stamp();
-                pendingMute = true;
-            }
-        }
-
-        if (!focused && enabled.get() && pendingMute && !mutedByUs) {
-            if (Timer.stamp() - focusLostAt >= delaySeconds.get()) {
+            } else if (enabled.get() && !mutedByUs) {
                 applyBackgroundVolume();
-                pendingMute = false;
             }
         }
 
-        if (!enabled.get()) {
-            pendingMute = false;
-            if (mutedByUs)
-                restoreVolume();
-        }
+        if (!enabled.get() && mutedByUs)
+            restoreVolume();
     }
 
     static function isGameFocused():Bool {
@@ -125,7 +112,14 @@ class MuteUnfocusedMod {
     }
 
     static function drawSettings():Void {
-        if (!ImGui.begin("Mute on Unfocus")) {
+        // Keep this callback registered even while the window is closed so the hotkey can reopen it.
+        if (ImGui.isKeyPressed(functionKeyToImGuiKey(hotkeyFunctionKey.get()), false))
+            panelOpen.set(true);
+
+        if (!panelOpen.get())
+            return;
+
+        if (!ImGui.begin("Mute on Unfocus", panelOpen)) {
             ImGui.end();
             return;
         }
@@ -149,16 +143,31 @@ class MuteUnfocusedMod {
             saveConfig();
         }
 
-        var oldDelay = delaySeconds.get();
-        ImGui.sliderFloat("Delay before muting", delaySeconds, 0.0, 5.0, "%.1f s");
-        if (delaySeconds.get() != oldDelay)
+        var oldHotkey = hotkeyFunctionKey.get();
+        ImGui.sliderInt("Open settings hotkey", hotkeyFunctionKey, 1, 12, "F%d");
+        if (hotkeyFunctionKey.get() != oldHotkey)
             saveConfig();
 
-        ImGui.separator();
-        ImGui.text(lastFocused ? "Status: focused" : (mutedByUs ? "Status: background audio applied" : "Status: unfocused"));
-        ImGui.text("Settings are saved automatically.");
-
+        ImGui.text('Press F${hotkeyFunctionKey.get()} to reopen this window.');
         ImGui.end();
+    }
+
+    static function functionKeyToImGuiKey(key:Int):ImGuiKey {
+        return switch (key) {
+            case 1: ImGuiKey.F1;
+            case 2: ImGuiKey.F2;
+            case 3: ImGuiKey.F3;
+            case 4: ImGuiKey.F4;
+            case 5: ImGuiKey.F5;
+            case 6: ImGuiKey.F6;
+            case 7: ImGuiKey.F7;
+            case 8: ImGuiKey.F8;
+            case 9: ImGuiKey.F9;
+            case 10: ImGuiKey.F10;
+            case 11: ImGuiKey.F11;
+            case 12: ImGuiKey.F12;
+            default: ImGuiKey.F9;
+        };
     }
 
     static function loadConfig():Void {
@@ -171,8 +180,8 @@ class MuteUnfocusedMod {
                 enabled.set(Reflect.field(data, "enabled"));
             if (Reflect.hasField(data, "backgroundVolume"))
                 backgroundVolume.set(clamp(cast Reflect.field(data, "backgroundVolume"), 0.0, 100.0));
-            if (Reflect.hasField(data, "delaySeconds"))
-                delaySeconds.set(clamp(cast Reflect.field(data, "delaySeconds"), 0.0, 5.0));
+            if (Reflect.hasField(data, "hotkeyFunctionKey"))
+                hotkeyFunctionKey.set(clampInt(cast Reflect.field(data, "hotkeyFunctionKey"), 1, 12));
         } catch (_:Dynamic) {}
     }
 
@@ -181,13 +190,17 @@ class MuteUnfocusedMod {
             var data = {
                 enabled: enabled.get(),
                 backgroundVolume: backgroundVolume.get(),
-                delaySeconds: delaySeconds.get()
+                hotkeyFunctionKey: hotkeyFunctionKey.get()
             };
             File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
         } catch (_:Dynamic) {}
     }
 
     static inline function clamp(value:Float, min:Float, max:Float):Float {
+        return value < min ? min : (value > max ? max : value);
+    }
+
+    static inline function clampInt(value:Int, min:Int, max:Int):Int {
         return value < min ? min : (value > max ? max : value);
     }
 }
