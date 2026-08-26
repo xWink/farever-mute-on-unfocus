@@ -3,7 +3,7 @@ package muteunfocused;
 import haxe.Json;
 import hlx.runtime.ResolvedMember;
 import imgui.ImGui;
-import imgui.ImGuiKey;
+import imgui.Enums.ImGuiKey;
 import imgui.ref.BoolRef;
 import imgui.ref.FloatRef;
 import imgui.ref.IntRef;
