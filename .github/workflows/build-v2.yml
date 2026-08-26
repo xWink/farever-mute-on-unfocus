@@ -1,0 +1,46 @@
+name: Build v2 UI mod
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v2-ui
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+
+      - name: Configure haxelib
+        run: |
+          mkdir -p "$HOME/haxelib"
+          haxelib setup "$HOME/haxelib"
+
+      - name: Install HLX dependencies
+        run: |
+          haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
+          haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
+
+      - name: Compile
+        run: haxe compile.hxml
+
+      - name: Package
+        run: |
+          mkdir -p package/mute-unfocused
+          cp build/mute-unfocused/mute-unfocused.hl package/mute-unfocused/
+          printf "Requires HLX Core and the HLX ImGui plugin.\nCopy this folder to Farever/hlx/mods/.\n" > package/mute-unfocused/README.txt
+          cd package
+          zip -r ../farever-mute-on-unfocus-v2.zip mute-unfocused
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: farever-mute-on-unfocus-v2
+          path: farever-mute-on-unfocus-v2.zip
