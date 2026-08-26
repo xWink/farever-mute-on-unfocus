@@ -6,7 +6,6 @@ import imgui.ImGui;
 import imgui.Enums.ImGuiKey;
 import imgui.ref.BoolRef;
 import imgui.ref.FloatRef;
-import imgui.ref.IntRef;
 import sys.FileSystem;
 import sys.io.File;
 
@@ -18,7 +17,14 @@ class MuteUnfocusedMod {
     static var enabled = new BoolRef(true);
     static var backgroundVolume = new FloatRef(0.0);
     static var panelOpen = new BoolRef(true);
-    static var hotkeyFunctionKey = new IntRef(9);
+
+    // Default hotkey: F9, no modifiers.
+    static var hotkeyKey:Int = ImGuiKey.F9;
+    static var hotkeyCtrl:Bool = false;
+    static var hotkeyShift:Bool = false;
+    static var hotkeyAlt:Bool = false;
+    static var hotkeySuper:Bool = false;
+    static var capturingHotkey:Bool = false;
 
     static var lastFocused:Bool = true;
     static var mutedByUs:Bool = false;
@@ -112,12 +118,15 @@ class MuteUnfocusedMod {
     }
 
     static function drawSettings():Void {
-        // Keep this callback registered even while the window is closed so the hotkey can reopen it.
-        if (ImGui.isKeyPressed(functionKeyToImGuiKey(hotkeyFunctionKey.get()), false))
+        // Keep the callback registered while closed so the configured hotkey can reopen it.
+        if (!capturingHotkey && hotkeyPressed())
             panelOpen.set(true);
 
         if (!panelOpen.get())
             return;
+
+        // Make the settings window substantially more opaque than the ImGui default.
+        ImGui.setNextWindowBgAlpha(0.98);
 
         if (!ImGui.begin("Mute on Unfocus", panelOpen)) {
             ImGui.end();
@@ -143,30 +152,102 @@ class MuteUnfocusedMod {
             saveConfig();
         }
 
-        var oldHotkey = hotkeyFunctionKey.get();
-        ImGui.sliderInt("Open settings hotkey", hotkeyFunctionKey, 1, 12, "F%d");
-        if (hotkeyFunctionKey.get() != oldHotkey)
-            saveConfig();
+        ImGui.separator();
+        ImGui.text("Open settings hotkey: " + hotkeyLabel());
 
-        ImGui.text('Press F${hotkeyFunctionKey.get()} to reopen this window.');
+        if (!capturingHotkey) {
+            if (ImGui.button("Change hotkey"))
+                capturingHotkey = true;
+        } else {
+            ImGui.text("Press a key combination...");
+            ImGui.text("Hold Ctrl/Shift/Alt/Win, then press a key. Esc cancels.");
+            captureNextHotkey();
+        }
+
         ImGui.end();
     }
 
-    static function functionKeyToImGuiKey(key:Int):ImGuiKey {
+    static function hotkeyPressed():Bool {
+        if (!ImGui.isKeyPressed(hotkeyKey, false))
+            return false;
+
+        return modifierDown(ImGuiKey.LeftCtrl, ImGuiKey.RightCtrl) == hotkeyCtrl
+            && modifierDown(ImGuiKey.LeftShift, ImGuiKey.RightShift) == hotkeyShift
+            && modifierDown(ImGuiKey.LeftAlt, ImGuiKey.RightAlt) == hotkeyAlt
+            && modifierDown(ImGuiKey.LeftSuper, ImGuiKey.RightSuper) == hotkeySuper;
+    }
+
+    static function captureNextHotkey():Void {
+        if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+            capturingHotkey = false;
+            return;
+        }
+
+        // ImGui's keyboard named-key range is 512..631 in the version used by Farever's
+        // hl-imgui wrapper. Modifier keys are handled separately so combinations such as
+        // Ctrl+Shift+F9 can be captured naturally.
+        for (key in 512...632) {
+            if (isModifierKey(key) || key == ImGuiKey.Escape)
+                continue;
+
+            if (ImGui.isKeyPressed(key, false)) {
+                hotkeyKey = key;
+                hotkeyCtrl = modifierDown(ImGuiKey.LeftCtrl, ImGuiKey.RightCtrl);
+                hotkeyShift = modifierDown(ImGuiKey.LeftShift, ImGuiKey.RightShift);
+                hotkeyAlt = modifierDown(ImGuiKey.LeftAlt, ImGuiKey.RightAlt);
+                hotkeySuper = modifierDown(ImGuiKey.LeftSuper, ImGuiKey.RightSuper);
+                capturingHotkey = false;
+                saveConfig();
+                return;
+            }
+        }
+    }
+
+    static inline function modifierDown(left:Int, right:Int):Bool {
+        return ImGui.isKeyDown(left) || ImGui.isKeyDown(right);
+    }
+
+    static inline function isModifierKey(key:Int):Bool {
+        return key >= ImGuiKey.LeftCtrl && key <= ImGuiKey.RightSuper;
+    }
+
+    static function hotkeyLabel():String {
+        var parts = new Array<String>();
+        if (hotkeyCtrl) parts.push("Ctrl");
+        if (hotkeyShift) parts.push("Shift");
+        if (hotkeyAlt) parts.push("Alt");
+        if (hotkeySuper) parts.push("Win");
+        parts.push(keyLabel(hotkeyKey));
+        return parts.join(" + ");
+    }
+
+    static function keyLabel(key:Int):String {
+        if (key >= ImGuiKey._0 && key <= ImGuiKey._9)
+            return String.fromCharCode("0".code + (key - ImGuiKey._0));
+
+        if (key >= ImGuiKey.A && key <= ImGuiKey.Z)
+            return String.fromCharCode("A".code + (key - ImGuiKey.A));
+
+        if (key >= ImGuiKey.F1 && key <= ImGuiKey.F24)
+            return "F" + (key - ImGuiKey.F1 + 1);
+
         return switch (key) {
-            case 1: ImGuiKey.F1;
-            case 2: ImGuiKey.F2;
-            case 3: ImGuiKey.F3;
-            case 4: ImGuiKey.F4;
-            case 5: ImGuiKey.F5;
-            case 6: ImGuiKey.F6;
-            case 7: ImGuiKey.F7;
-            case 8: ImGuiKey.F8;
-            case 9: ImGuiKey.F9;
-            case 10: ImGuiKey.F10;
-            case 11: ImGuiKey.F11;
-            case 12: ImGuiKey.F12;
-            default: ImGuiKey.F9;
+            case ImGuiKey.Tab: "Tab";
+            case ImGuiKey.LeftArrow: "Left";
+            case ImGuiKey.RightArrow: "Right";
+            case ImGuiKey.UpArrow: "Up";
+            case ImGuiKey.DownArrow: "Down";
+            case ImGuiKey.PageUp: "Page Up";
+            case ImGuiKey.PageDown: "Page Down";
+            case ImGuiKey.Home: "Home";
+            case ImGuiKey.End: "End";
+            case ImGuiKey.Insert: "Insert";
+            case ImGuiKey.Delete: "Delete";
+            case ImGuiKey.Backspace: "Backspace";
+            case ImGuiKey.Space: "Space";
+            case ImGuiKey.Enter: "Enter";
+            case ImGuiKey.Menu: "Menu";
+            default: "Key " + key;
         };
     }
 
@@ -180,8 +261,19 @@ class MuteUnfocusedMod {
                 enabled.set(Reflect.field(data, "enabled"));
             if (Reflect.hasField(data, "backgroundVolume"))
                 backgroundVolume.set(clamp(cast Reflect.field(data, "backgroundVolume"), 0.0, 100.0));
-            if (Reflect.hasField(data, "hotkeyFunctionKey"))
-                hotkeyFunctionKey.set(clampInt(cast Reflect.field(data, "hotkeyFunctionKey"), 1, 12));
+
+            // New hotkey format.
+            if (Reflect.hasField(data, "hotkeyKey")) {
+                hotkeyKey = cast Reflect.field(data, "hotkeyKey");
+                if (Reflect.hasField(data, "hotkeyCtrl")) hotkeyCtrl = Reflect.field(data, "hotkeyCtrl");
+                if (Reflect.hasField(data, "hotkeyShift")) hotkeyShift = Reflect.field(data, "hotkeyShift");
+                if (Reflect.hasField(data, "hotkeyAlt")) hotkeyAlt = Reflect.field(data, "hotkeyAlt");
+                if (Reflect.hasField(data, "hotkeySuper")) hotkeySuper = Reflect.field(data, "hotkeySuper");
+            } else if (Reflect.hasField(data, "hotkeyFunctionKey")) {
+                // Migrate the earlier F1-F12 slider setting automatically.
+                var oldF:Int = clampInt(cast Reflect.field(data, "hotkeyFunctionKey"), 1, 12);
+                hotkeyKey = ImGuiKey.F1 + oldF - 1;
+            }
         } catch (_:Dynamic) {}
     }
 
@@ -190,7 +282,11 @@ class MuteUnfocusedMod {
             var data = {
                 enabled: enabled.get(),
                 backgroundVolume: backgroundVolume.get(),
-                hotkeyFunctionKey: hotkeyFunctionKey.get()
+                hotkeyKey: hotkeyKey,
+                hotkeyCtrl: hotkeyCtrl,
+                hotkeyShift: hotkeyShift,
+                hotkeyAlt: hotkeyAlt,
+                hotkeySuper: hotkeySuper
             };
             File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
         } catch (_:Dynamic) {}
