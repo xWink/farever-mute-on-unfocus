@@ -32,24 +32,36 @@ class MuteUnfocusedMod {
     static var setVcaVolumeMember:ResolvedMember;
 
     static function main():Void {
-        resolveBindings();
+        // HLX loads mods before its reflection layer has necessarily recovered the live game
+        // module. Do not cache failed resolutions here; bind lazily from GameApp.update instead.
         loadConfig();
-        lastFocused = isGameFocused();
         ImGui.register(HlxRuntime.moduleName(), drawSettings);
     }
 
-    static function resolveBindings():Void {
+    static function ensureBindings():Bool {
+        if (windowGetInstance != null && windowGetIsFocused != null
+            && getVcaVolumeMember != null && setVcaVolumeMember != null)
+            return true;
+
         windowType = HlxRuntime.resolveType("hxd.Window");
+        fmodApiType = HlxRuntime.resolveType("fmod.Api");
+        if (windowType == null || fmodApiType == null)
+            return false;
+
         windowGetInstance = HlxRuntime.resolveStaticMember(windowType, "getInstance");
         windowGetIsFocused = HlxRuntime.resolveMember(windowType, "get_isFocused");
-
-        fmodApiType = HlxRuntime.resolveType("fmod.Api");
         getVcaVolumeMember = HlxRuntime.resolveStaticMember(fmodApiType, "getVcaVolume");
         setVcaVolumeMember = HlxRuntime.resolveStaticMember(fmodApiType, "setVcaVolume");
+
+        return windowGetInstance != null && windowGetIsFocused != null
+            && getVcaVolumeMember != null && setVcaVolumeMember != null;
     }
 
     @:hlx.postfix(GameApp.update)
     static function afterGameAppUpdate(instance:Dynamic, dt:Float, result:Void):Void {
+        if (!ensureBindings())
+            return;
+
         var focused = isGameFocused();
 
         if (focused != lastFocused) {
@@ -80,7 +92,7 @@ class MuteUnfocusedMod {
     }
 
     static function isGameFocused():Bool {
-        if (windowGetInstance == null || windowGetIsFocused == null)
+        if (!ensureBindings())
             return true;
 
         var window:Dynamic = HlxRuntime.callResolved(windowGetInstance, []);
@@ -91,13 +103,13 @@ class MuteUnfocusedMod {
     }
 
     static function getMasterVolume():Float {
-        if (getVcaVolumeMember == null)
+        if (!ensureBindings())
             return 1.0;
         return cast HlxRuntime.callResolved(getVcaVolumeMember, [MASTER_VCA]);
     }
 
     static function setMasterVolume(volume:Float):Void {
-        if (setVcaVolumeMember != null)
+        if (ensureBindings())
             HlxRuntime.callResolved(setVcaVolumeMember, [MASTER_VCA, volume]);
     }
 
@@ -155,16 +167,13 @@ class MuteUnfocusedMod {
                 return;
 
             var data:Dynamic = Json.parse(File.getContent(CONFIG_PATH));
-
             if (Reflect.hasField(data, "enabled"))
                 enabled.set(Reflect.field(data, "enabled"));
             if (Reflect.hasField(data, "backgroundVolume"))
                 backgroundVolume.set(clamp(cast Reflect.field(data, "backgroundVolume"), 0.0, 100.0));
             if (Reflect.hasField(data, "delaySeconds"))
                 delaySeconds.set(clamp(cast Reflect.field(data, "delaySeconds"), 0.0, 5.0));
-        } catch (_:Dynamic) {
-            // Invalid/missing config falls back to defaults.
-        }
+        } catch (_:Dynamic) {}
     }
 
     static function saveConfig():Void {
@@ -175,9 +184,7 @@ class MuteUnfocusedMod {
                 delaySeconds: delaySeconds.get()
             };
             File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
-        } catch (_:Dynamic) {
-            // Settings still work for the current session if persistence fails.
-        }
+        } catch (_:Dynamic) {}
     }
 
     static inline function clamp(value:Float, min:Float, max:Float):Float {
