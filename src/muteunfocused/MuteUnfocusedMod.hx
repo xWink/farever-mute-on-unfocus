@@ -121,7 +121,7 @@ class MuteUnfocusedMod {
 
     static function drawSettings():Void {
         if (!capturingHotkey && hotkeyPressed())
-            panelOpen.set(true);
+            panelOpen.set(!panelOpen.get());
 
         if (!panelOpen.get())
             return;
