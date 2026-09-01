@@ -33,11 +33,11 @@ jobs:
 
       - name: Package
         run: |
-          mkdir -p package/mute-unfocused
-          cp build/mute-unfocused/mute-unfocused.hl package/mute-unfocused/
-          printf "Requires HLX Core and the Farever ImGui plugin.\nCopy this folder to Farever/hlx/mods/.\n" > package/mute-unfocused/README.txt
+          mkdir -p package/hlx/mods/mute-unfocused
+          cp build/mute-unfocused/mute-unfocused.hl package/hlx/mods/mute-unfocused/
+          printf "Requires HLX Core and the Farever ImGui plugin.\nInstall with Vortex, or extract the archive into the Farever game folder.\n" > package/hlx/mods/mute-unfocused/README.txt
           cd package
-          zip -r ../farever-mute-on-unfocus.zip mute-unfocused
+          zip -r ../farever-mute-on-unfocus.zip hlx
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
