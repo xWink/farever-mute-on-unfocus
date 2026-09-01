@@ -38,16 +38,10 @@ Do not place `imgui64.hdll` loose beside `Farever.exe`.
 
 ### 3. Install this mod
 
-Create this directory if it does not already exist:
+Download the latest build artifact ZIP. Install it with Vortex, or extract the ZIP directly into the Farever game directory. The archive already contains the complete game-relative path:
 
 ```text
-Farever\hlx\mods\mute-unfocused\
-```
-
-Place `mute-unfocused.hl` here:
-
-```text
-Farever\hlx\mods\mute-unfocused\mute-unfocused.hl
+hlx\mods\mute-unfocused\mute-unfocused.hl
 ```
 
 The final layout should look roughly like:
