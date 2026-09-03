@@ -28,8 +28,7 @@ class MuteUnfocusedMod {
 
     static function main():Void {
         loadConfig();
-        if (!FileSystem.exists(CONFIG_PATH))
-            saveConfig();
+        saveConfig();
     }
 
     static function ensureBindings():Bool {
