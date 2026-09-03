@@ -12,7 +12,7 @@ import sys.io.File;
 @:build(hlx.runtime.Mod.build())
 class MuteUnfocusedMod {
     static inline var MASTER_VCA = "vca:/MASTER";
-    static inline var CONFIG_PATH = "hlx/mods/mute-unfocused/config.json";
+    static inline var CONFIG_PATH = "hlx/mods/mute-unfocused/settings.json";
 
     static var enabled = new BoolRef(true);
     static var backgroundVolume = new FloatRef(0.0);
@@ -30,6 +30,7 @@ class MuteUnfocusedMod {
     static var lastFocused:Bool = true;
     static var mutedByUs:Bool = false;
     static var savedMasterVolume:Float = 1.0;
+    static var lastSettingsModified:Float = -1.0;
 
     static var windowType:hl.Bytes;
     static var windowGetInstance:ResolvedMember;
@@ -67,6 +68,7 @@ class MuteUnfocusedMod {
 
     @:hlx.postfix(GameApp.update)
     static function afterGameAppUpdate(instance:Dynamic, dt:Float, result:Void):Void {
+        reloadSettingsIfChanged();
         if (!ensureBindings())
             return;
 
@@ -256,6 +258,23 @@ class MuteUnfocusedMod {
         };
     }
 
+    static function reloadSettingsIfChanged():Void {
+        try {
+            if (!FileSystem.exists(CONFIG_PATH))
+                return;
+            var modified = FileSystem.stat(CONFIG_PATH).mtime.getTime();
+            if (modified != lastSettingsModified)
+                loadConfig();
+        } catch (_:Dynamic) {}
+    }
+
+    static function updateSettingsModifiedTime():Void {
+        try {
+            if (FileSystem.exists(CONFIG_PATH))
+                lastSettingsModified = FileSystem.stat(CONFIG_PATH).mtime.getTime();
+        } catch (_:Dynamic) {}
+    }
+
     static function loadConfig():Void {
         try {
             if (!FileSystem.exists(CONFIG_PATH))
@@ -287,6 +306,7 @@ class MuteUnfocusedMod {
                 hasSeenMenu = true;
             }
         } catch (_:Dynamic) {}
+        updateSettingsModifiedTime();
     }
 
     static function saveConfig():Void {
@@ -302,6 +322,7 @@ class MuteUnfocusedMod {
                 hasSeenMenu: hasSeenMenu
             };
             File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
+            updateSettingsModifiedTime();
         } catch (_:Dynamic) {}
     }
 
