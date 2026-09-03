@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir -p package/hlx/mods/mute-unfocused
           cp build/mute-unfocused/mute-unfocused.hl package/hlx/mods/mute-unfocused/
-          cp settingFormats.json settings.json package/hlx/mods/mute-unfocused/
+          cp settingFormats.json package/hlx/mods/mute-unfocused/
           printf "Requires HLX Core and the Farever ImGui plugin.\nInstall with Vortex, or extract the archive into the Farever game folder.\n" > package/hlx/mods/mute-unfocused/README.txt
 
       - name: Upload build artifact
