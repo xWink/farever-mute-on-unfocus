@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "modId": "mute-unfocused",
+  "displayName": "Mute on Unfocus",
+  "settings": [
+    {
+      "key": "enabled",
+      "type": "checkbox",
+      "label": "Enabled"
+    },
+    {
+      "key": "backgroundVolume",
+      "type": "slider",
+      "label": "Background volume %",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    }
+  ]
+}
+
