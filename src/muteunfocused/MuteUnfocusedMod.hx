@@ -12,7 +12,7 @@ import sys.io.File;
 @:build(hlx.runtime.Mod.build())
 class MuteUnfocusedMod {
     static inline var MASTER_VCA = "vca:/MASTER";
-    static inline var CONFIG_PATH = "hlx/mods/mute-unfocused/settings.json";
+    static inline var CONFIG_PATH = "hlx/mods/mute-unfocused/config.json";
 
     static var enabled = new BoolRef(true);
     static var backgroundVolume = new FloatRef(0.0);
@@ -44,6 +44,8 @@ class MuteUnfocusedMod {
         // HLX loads mods before its reflection layer has necessarily recovered the live game
         // module. Do not cache failed resolutions here; bind lazily from GameApp.update instead.
         loadConfig();
+        if (!FileSystem.exists(CONFIG_PATH))
+            saveConfig();
         panelOpen.set(!hasSeenMenu);
         ImGui.register(HlxRuntime.moduleName(), drawSettings);
     }
