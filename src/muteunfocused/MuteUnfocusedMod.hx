@@ -31,6 +31,7 @@ class MuteUnfocusedMod {
     static var mutedByUs:Bool = false;
     static var savedMasterVolume:Float = 1.0;
     static var lastSettingsModified:Float = -1.0;
+    static var settingsCheckTimer:Float = 0.0;
 
     static var windowType:hl.Bytes;
     static var windowGetInstance:ResolvedMember;
@@ -68,7 +69,12 @@ class MuteUnfocusedMod {
 
     @:hlx.postfix(GameApp.update)
     static function afterGameAppUpdate(instance:Dynamic, dt:Float, result:Void):Void {
-        reloadSettingsIfChanged();
+        settingsCheckTimer += dt;
+        if (settingsCheckTimer >= 1.0) {
+            settingsCheckTimer = 0.0;
+            reloadSettingsIfChanged();
+        }
+
         if (!ensureBindings())
             return;
 
