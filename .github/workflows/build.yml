@@ -35,12 +35,11 @@ jobs:
         run: |
           mkdir -p package/hlx/mods/mute-unfocused
           cp build/mute-unfocused/mute-unfocused.hl package/hlx/mods/mute-unfocused/
+          cp settingFormats.json settings.json package/hlx/mods/mute-unfocused/
           printf "Requires HLX Core and the Farever ImGui plugin.\nInstall with Vortex, or extract the archive into the Farever game folder.\n" > package/hlx/mods/mute-unfocused/README.txt
-          cd package
-          zip -r ../farever-mute-on-unfocus.zip hlx
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: farever-mute-on-unfocus
-          path: farever-mute-on-unfocus.zip
+          path: package/
