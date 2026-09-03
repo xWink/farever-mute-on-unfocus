@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "modId": "mute-unfocused",
   "displayName": "Mute on Unfocus",
+  "settingsFile": "config.json",
   "settings": [
     {
       "key": "enabled",
@@ -18,4 +19,3 @@
     }
   ]
 }
-
