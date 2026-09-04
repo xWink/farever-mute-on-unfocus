@@ -1,6 +1,7 @@
 package muteunfocused;
 
 import haxe.Json;
+import hlx.runtime.Bus;
 import hlx.runtime.ResolvedMember;
 import sys.FileSystem;
 import sys.io.File;
@@ -9,6 +10,8 @@ import sys.io.File;
 class MuteUnfocusedMod {
     static inline var MASTER_VCA = "vca:/MASTER";
     static inline var CONFIG_PATH = "hlx/mods/mute-unfocused/config.json";
+    static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
+        "better-mod-settings/config-changed/";
 
     static var enabled:Bool = true;
     static var backgroundVolume:Float = 0.0;
@@ -16,8 +19,6 @@ class MuteUnfocusedMod {
     static var lastFocused:Bool = true;
     static var mutedByUs:Bool = false;
     static var savedMasterVolume:Float = 1.0;
-    static var lastSettingsModified:Float = -1.0;
-    static var settingsCheckTimer:Float = 0.0;
 
     static var windowType:hl.Bytes;
     static var windowGetInstance:ResolvedMember;
@@ -29,6 +30,10 @@ class MuteUnfocusedMod {
     static function main():Void {
         loadConfig();
         saveConfig();
+        Bus.subscribe(
+            SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
+            onBetterModSettingsChanged
+        );
     }
 
     static function ensureBindings():Bool {
@@ -52,12 +57,6 @@ class MuteUnfocusedMod {
 
     @:hlx.postfix(GameApp.update)
     static function afterGameAppUpdate(instance:Dynamic, dt:Float, result:Void):Void {
-        settingsCheckTimer += dt;
-        if (settingsCheckTimer >= 1.0) {
-            settingsCheckTimer = 0.0;
-            reloadSettingsIfChanged();
-        }
-
         if (!ensureBindings())
             return;
 
@@ -110,21 +109,8 @@ class MuteUnfocusedMod {
         mutedByUs = false;
     }
 
-    static function reloadSettingsIfChanged():Void {
-        try {
-            if (!FileSystem.exists(CONFIG_PATH))
-                return;
-            var modified = FileSystem.stat(CONFIG_PATH).mtime.getTime();
-            if (modified != lastSettingsModified)
-                loadConfig();
-        } catch (_:Dynamic) {}
-    }
-
-    static function updateSettingsModifiedTime():Void {
-        try {
-            if (FileSystem.exists(CONFIG_PATH))
-                lastSettingsModified = FileSystem.stat(CONFIG_PATH).mtime.getTime();
-        } catch (_:Dynamic) {}
+    static function onBetterModSettingsChanged(_:Dynamic):Void {
+        loadConfig();
     }
 
     static function loadConfig():Void {
@@ -139,7 +125,6 @@ class MuteUnfocusedMod {
                 backgroundVolume = clamp(cast Reflect.field(data, "backgroundVolume"), 0.0, 100.0);
 
         } catch (_:Dynamic) {}
-        updateSettingsModifiedTime();
     }
 
     static function saveConfig():Void {
@@ -149,7 +134,6 @@ class MuteUnfocusedMod {
                 backgroundVolume: backgroundVolume
             };
             File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
-            updateSettingsModifiedTime();
         } catch (_:Dynamic) {}
     }
 
